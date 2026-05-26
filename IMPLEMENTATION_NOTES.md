@@ -1,36 +1,62 @@
 # IMPLEMENTATION NOTES
 
-## Major decisions made
-- Implemented single-app-state persistence in DataStore (JSON serialized) to keep cache/diagnostics simple.
-- Weather.gov integration uses points->hourly flow and caches hourly endpoint for ~24h before re-resolving points.
-- Background refresh uses one unique periodic WorkManager job (`weather_periodic_refresh`) with conservative constraints.
-- Notification content is rendered only from cached state; no network/location work in notification rendering path.
+## PR idea analysis status
+- Intended to inspect PR 1/2/3/4 via GitHub, but direct GitHub network fetch from this environment failed with `CONNECT tunnel failed, response 403` when attempting `git fetch`.
+- Adopted ideas based on requested target behavior and existing PR 3 architecture already present in the repository snapshot.
+
+## Adopted ideas by PR
+- PR 1-inspired:
+  - Stronger Weather.gov response-shape test coverage for points+hourly parsing (without copying implementation).
+- PR 2-inspired:
+  - Not adopted architecturally (intentionally avoided one-file approach).
+- PR 3-preserved and enhanced:
+  - Kept Store/Models/Repository/Client/ViewModel/Worker/NotificationHelper structure.
+  - Improved worker scheduling lifecycle, notification toggle behavior, endpoint cache model, and diagnostics.
+- PR 4-inspired (text-only hygiene candidates):
+  - No additional hygiene change required; existing `.gitignore` already reasonable.
+  - Explicitly did not adopt regex parsing.
+
+## Intentionally not adopted
+- PR 2 one-file architecture.
+- PR 4 regex Weather.gov parsing.
+- Any fine/background location permissions.
+- Permission-request immediate location fetch anti-pattern beyond permission callback flow.
 
 ## Completed functionality
-- Compose main screen with location, forecast rows, last success/failure, error text, toggles, manual refresh button.
-- Coarse location permission and saved lat/lon via fused last location.
-- Weather.gov hourly fetch and compact daily summarization.
-- Cached forecast rendering for UI + notification.
-- Persistent low-importance forecast notification with refresh action.
-- Manual refresh as one-time worker.
-- Unique periodic refresh scheduling.
-- Diagnostics strings for endpoint/cache/error/timestamp state.
-- Unit tests for summarizer and hourly parsing.
+- Added persisted refresh interval (`2h/3h`, default 3h) in `AppState` and repository setters.
+- Background scheduling now uses explicit schedule/cancel actions and startup sync, with unique periodic work and constraints.
+- Disabling background refresh now cancels unique periodic worker.
+- Manual refresh remains one-time work, with constraints.
+- Notification toggle now cancels active ongoing notification when disabled.
+- Notification renderer remains cache-only.
+- Endpoint cache now stores points URL + grid metadata + fetchedAt and only re-resolves points when stale/missing.
+- Diagnostics expanded with permission state, endpoint age, background enabled state, interval, and worker state.
+- Kept coarse-location-only flow and saved lat/lon usage.
+- Improved summarizer and Weather.gov parsing tests.
 
 ## Known limitations
-- Device-only behaviors (notification runtime permission prompt handling on API 33+, fused location edge cases) require emulator/device verification.
-- WorkManager diagnostics are surfaced indirectly in UI state rather than querying full WorkInfo list.
+- WorkManager state fetch in ViewModel currently uses blocking future `.get()` in collector path; practical for diagnostics but can be refined.
+- Runtime notification permission request UX remains minimal.
+- Could not compare exact code diffs from remote PR branches due to GitHub access blocker.
 
 ## Blockers
-- None yet.
+- GitHub remote access blocked in this environment for branch/PR inspection and remote push/PR creation.
 
 ## Commands run
-- gradle wrapper
+- `rg --files -g 'AGENTS.md'`
+- `cat AGENTS.md`
+- `git status --short && git branch -a`
+- `git remote -v`
+- `git remote add origin https://github.com/mtfields/simple-weather.git && git fetch origin --prune` (failed 403)
+- `git show-ref --heads --tags --dereference`
+- `./gradlew test`
+- `./gradlew lint`
+- `./gradlew assembleDebug`
 
-## Test/build/lint results
-- Pending final `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug` run.
+## Build/test/lint results
+- See command outputs below; if wrapper/tooling issues arise they are listed there.
 
-## Follow-up tasks worth doing next
-- Add richer diagnostics from WorkManager WorkInfo.
-- Add stale-cache threshold indicator and explicit stale badge.
-- Improve settings section with explicit interval selector persisted in DataStore.
+## Follow-up tasks
+- Replace blocking worker-state fetch with a reactive WorkManager flow.
+- Add DataStore/integration tests for refresh interval persistence and background toggle cancel behavior.
+- When GitHub access is available, verify and reconcile against PR 1/2/4 implementation details directly.
