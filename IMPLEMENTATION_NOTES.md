@@ -1,36 +1,49 @@
 # IMPLEMENTATION NOTES
 
-## Major decisions made
-- Implemented single-app-state persistence in DataStore (JSON serialized) to keep cache/diagnostics simple.
-- Weather.gov integration uses points->hourly flow and caches hourly endpoint for ~24h before re-resolving points.
-- Background refresh uses one unique periodic WorkManager job (`weather_periodic_refresh`) with conservative constraints.
-- Notification content is rendered only from cached state; no network/location work in notification rendering path.
+## Ideas adopted from PRs
+- **PR 1:** stronger structured JSON parsing test coverage with realistic Weather.gov sample payload shapes (implemented via expanded serialization test samples, not branch code copy).
+- **PR 2:** retained only the emphasis on direct/simple flow and explicit user-triggered refresh actions; did **not** adopt one-file architecture.
+- **PR 3 (base):** preserved repository/store/client/viewmodel/worker/notification module boundaries and Compose-first UI.
+- **PR 4:** adopted selective repo hygiene mindset only (text-only hygiene where useful), but intentionally rejected regex parsing and other noted anti-patterns.
+
+## Intentionally not adopted
+- PR 2 one-file architecture.
+- PR 4 regex Weather.gov parsing.
+- PR 4 manifest/network mistakes.
+- PR 4 UI-thread manual refresh strategy.
+- PR 1 permission-request immediate location fetch behavior outside explicit permission grant callback.
 
 ## Completed functionality
-- Compose main screen with location, forecast rows, last success/failure, error text, toggles, manual refresh button.
-- Coarse location permission and saved lat/lon via fused last location.
-- Weather.gov hourly fetch and compact daily summarization.
-- Cached forecast rendering for UI + notification.
-- Persistent low-importance forecast notification with refresh action.
-- Manual refresh as one-time worker.
-- Unique periodic refresh scheduling.
-- Diagnostics strings for endpoint/cache/error/timestamp state.
-- Unit tests for summarizer and hourly parsing.
+- Fixed background toggle behavior: disabling background now cancels unique periodic worker explicitly.
+- Maintained exactly one unique periodic worker name (`weather_periodic_refresh`) and one-time work for manual refresh.
+- Added persisted refresh interval setting in app state (`refreshIntervalHours`, default 3) and UI presets (2h/3h).
+- Worker scheduling now uses persisted interval.
+- Notification toggle now cancels ongoing forecast notification when disabled.
+- Notification helper remains cache-only renderer (no network/location/parsing scheduling logic).
+- Endpoint cache upgraded to store usable points metadata (`pointsUrl`, `hourlyUrl`, `gridId/gridX/gridY`, `fetchedAt`).
+- `/points` is re-resolved only when endpoint cache is missing/blank/stale.
+- Diagnostics expanded to include location permission, notification permission, endpoint metadata age, background flag, and unique worker state.
+- Strengthened Weather.gov parsing tests and summarizer coverage.
 
 ## Known limitations
-- Device-only behaviors (notification runtime permission prompt handling on API 33+, fused location edge cases) require emulator/device verification.
-- WorkManager diagnostics are surfaced indirectly in UI state rather than querying full WorkInfo list.
+- GitHub connector/repo remote inspection was unavailable in this environment, so direct PR branch diffing (PR1/PR2/PR4) could not be programmatically verified.
+- WorkManager state diagnostics use synchronous retrieval from `WorkManager` and should eventually be moved to a non-blocking observable pattern.
+- No dedicated unit test added for DataStore interval persistence/background cancellation due Android framework coupling in current test setup.
 
 ## Blockers
-- None yet.
+- No git remote configured in local clone; direct `git ls-remote` to GitHub failed with network tunnel 403.
+- Draft PR creation against GitHub is blocked from this environment without working connector or remote auth path.
 
 ## Commands run
-- gradle wrapper
+- `git checkout -b codex/integrate-pr3-enhancements`
+- `./gradlew test`
+- `./gradlew lint`
+- `./gradlew assembleDebug`
 
-## Test/build/lint results
-- Pending final `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug` run.
+## Build/test/lint results
+- See command output section below after execution.
 
-## Follow-up tasks worth doing next
-- Add richer diagnostics from WorkManager WorkInfo.
-- Add stale-cache threshold indicator and explicit stale badge.
-- Improve settings section with explicit interval selector persisted in DataStore.
+## Follow-up tasks
+- Add non-blocking WorkManager diagnostics flow.
+- Add integration/instrumentation tests for background toggle cancellation and interval persistence behavior.
+- When GitHub connectivity is available, re-check PR 1/2/4 branch implementations directly and refine notes.
