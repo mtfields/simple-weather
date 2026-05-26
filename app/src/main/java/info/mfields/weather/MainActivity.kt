@@ -34,6 +34,13 @@ class MainActivity: ComponentActivity() {
         Text("Error: ${s.lastError ?: "none"}")
         Row { Text("Notifications"); Switch(checked=s.notificationsEnabled,onCheckedChange=vm::setNotificationsEnabled) }
         Row { Text("Background"); Switch(checked=s.backgroundEnabled,onCheckedChange=vm::setBackgroundEnabled) }
+        Row {
+            Text("Refresh interval")
+            Spacer(Modifier.width(8.dp))
+            FilterChip(selected = s.refreshIntervalHours == 2, onClick = { vm.setRefreshInterval(2) }, label = { Text("2h") })
+            Spacer(Modifier.width(8.dp))
+            FilterChip(selected = s.refreshIntervalHours == 3, onClick = { vm.setRefreshInterval(3) }, label = { Text("3h") })
+        }
         Text("Diagnostics: ${s.diagnostics}")
         LazyColumn { items(s.days){ d -> Text("${d.day}: ${d.high}/${d.low} ${d.summary}") } }
     }
