@@ -1,36 +1,56 @@
 # IMPLEMENTATION NOTES
 
-## Major decisions made
-- Implemented single-app-state persistence in DataStore (JSON serialized) to keep cache/diagnostics simple.
-- Weather.gov integration uses points->hourly flow and caches hourly endpoint for ~24h before re-resolving points.
-- Background refresh uses one unique periodic WorkManager job (`weather_periodic_refresh`) with conservative constraints.
-- Notification content is rendered only from cached state; no network/location work in notification rendering path.
+## PR review status and branch constraints
+- Attempted to inspect PRs 1-4 via GitHub API, but outbound GitHub API access is blocked in this environment (`curl https://api.github.com/...` returned HTTP 403 tunnel failure).
+- Because of that blocker, implementation was completed by improving the selected local PR 3 codebase directly and applying requested behavior/architecture changes from the task statement.
+
+## Ideas adopted
+- From PR 3 baseline architecture: kept `data.Store`/`Models`, `WeatherRepository`, `WeatherGovClient`, `MainViewModel` + `MainActivity`, `RefreshWorker`, `NotificationHelper`.
+- From cross-PR task intent: strengthened parsing/endpoint metadata handling, explicit background worker toggling behavior, and broader diagnostics visibility.
+
+## Intentionally not adopted
+- Did not adopt one-file architecture patterns.
+- Did not add regex JSON parsing.
+- Did not add fine/background location permissions.
+- Did not move manual refresh to UI-thread network behavior.
 
 ## Completed functionality
-- Compose main screen with location, forecast rows, last success/failure, error text, toggles, manual refresh button.
-- Coarse location permission and saved lat/lon via fused last location.
-- Weather.gov hourly fetch and compact daily summarization.
-- Cached forecast rendering for UI + notification.
-- Persistent low-importance forecast notification with refresh action.
-- Manual refresh as one-time worker.
-- Unique periodic refresh scheduling.
-- Diagnostics strings for endpoint/cache/error/timestamp state.
-- Unit tests for summarizer and hourly parsing.
+- Added persisted refresh interval (`refreshIntervalHours`) with default 3h and 2h/3h UI presets.
+- Fixed notification toggle behavior so disabling notifications cancels the ongoing notification immediately.
+- Added explicit periodic worker cancel path and explicit schedule path tied to state-changing actions/startup.
+- Kept unique periodic worker name and network + battery-not-low constraints.
+- Kept manual refresh as one-time worker with constraints.
+- Upgraded endpoint cache metadata to include points URL, hourly URL, grid metadata, and fetchedAt.
+- Re-checks `/points` when endpoint metadata is missing/blank/stale.
+- Expanded diagnostics with location permission status, notification permission status, endpoint staleness, background enabled state, and worker state summary.
+- Strengthened Weather.gov parsing test with points+hourly realistic response coverage.
+- Added lightweight state persistence test for interval value.
 
 ## Known limitations
-- Device-only behaviors (notification runtime permission prompt handling on API 33+, fused location edge cases) require emulator/device verification.
-- WorkManager diagnostics are surfaced indirectly in UI state rather than querying full WorkInfo list.
+- GitHub API access blocked, so direct PR 1/2/3/4 diff inspection could not be completed in-environment.
+- WorkManager state query uses synchronous `get()` in ViewModel collector and may be further optimized to avoid any blocking call path.
 
 ## Blockers
-- None yet.
+- Missing Gradle wrapper scripts/binaries in repository (`./gradlew` not present), so required validation commands could not be executed as requested.
 
 ## Commands run
-- gradle wrapper
+- `git status --short`
+- `git branch --show-current`
+- `rg --files -g 'AGENTS.md'`
+- `cat AGENTS.md`
+- `git branch -a`
+- `git fetch origin`
+- `git remote -v`
+- `git log --oneline --decorate --graph --all --max-count=30`
+- `curl -I https://api.github.com`
+- `./gradlew test lint assembleDebug`
 
-## Test/build/lint results
-- Pending final `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug` run.
+## Build/test/lint results
+- `./gradlew test` -> blocked (wrapper missing)
+- `./gradlew lint` -> blocked (wrapper missing)
+- `./gradlew assembleDebug` -> blocked (wrapper missing)
 
-## Follow-up tasks worth doing next
-- Add richer diagnostics from WorkManager WorkInfo.
-- Add stale-cache threshold indicator and explicit stale badge.
-- Improve settings section with explicit interval selector persisted in DataStore.
+## Follow-up tasks
+- Add repository Gradle wrapper files (`gradlew`, `gradlew.bat`, `gradle/wrapper/*`) if policy allows.
+- Replace blocking WorkManager state read with non-blocking observation.
+- Add worker scheduling/cancel behavior tests with WorkManager test APIs.

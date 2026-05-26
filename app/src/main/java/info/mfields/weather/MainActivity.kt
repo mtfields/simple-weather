@@ -1,7 +1,6 @@
 package info.mfields.weather
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -14,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import info.mfields.weather.ui.MainViewModel
 
@@ -34,6 +32,11 @@ class MainActivity: ComponentActivity() {
         Text("Error: ${s.lastError ?: "none"}")
         Row { Text("Notifications"); Switch(checked=s.notificationsEnabled,onCheckedChange=vm::setNotificationsEnabled) }
         Row { Text("Background"); Switch(checked=s.backgroundEnabled,onCheckedChange=vm::setBackgroundEnabled) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Interval")
+            FilterChip(selected = s.refreshIntervalHours == 2L, onClick = { vm.setRefreshIntervalHours(2) }, label = { Text("2h") })
+            FilterChip(selected = s.refreshIntervalHours == 3L, onClick = { vm.setRefreshIntervalHours(3) }, label = { Text("3h") })
+        }
         Text("Diagnostics: ${s.diagnostics}")
         LazyColumn { items(s.days){ d -> Text("${d.day}: ${d.high}/${d.low} ${d.summary}") } }
     }
