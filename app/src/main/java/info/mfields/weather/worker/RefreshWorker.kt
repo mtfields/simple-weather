@@ -2,8 +2,10 @@ package info.mfields.weather.worker
 
 import android.content.Context
 import androidx.work.*
+import info.mfields.weather.data.Store
 import info.mfields.weather.data.WeatherRepository
 import info.mfields.weather.notification.NotificationHelper
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 class RefreshWorker(ctx: Context, params: WorkerParameters): CoroutineWorker(ctx, params) {
@@ -15,11 +17,20 @@ class RefreshWorker(ctx: Context, params: WorkerParameters): CoroutineWorker(ctx
     }
     companion object {
         const val UNIQUE = "weather_periodic_refresh"
+        suspend fun scheduleFromSettings(context: Context) {
+            val hours = Store(context).state.first().refreshIntervalHours
+            schedule(context, hours)
+        }
         fun schedule(context: Context, everyHours: Long = 3) {
             val req = PeriodicWorkRequestBuilder<RefreshWorker>(everyHours, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresBatteryNotLow(true).build()).build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(UNIQUE, ExistingPeriodicWorkPolicy.UPDATE, req)
         }
-        fun oneTime(context: Context) = WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<RefreshWorker>().build())
+        fun cancel(context: Context) = WorkManager.getInstance(context).cancelUniqueWork(UNIQUE)
+        fun oneTime(context: Context) = WorkManager.getInstance(context).enqueue(
+            OneTimeWorkRequestBuilder<RefreshWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresBatteryNotLow(true).build())
+                .build()
+        )
     }
 }
